@@ -1,5 +1,6 @@
 const SYNC_SUB_INTERVAL = 5 * 60000;
 const cron = require('node-cron');
+const fetch = require('node-fetch');
 
 const express = require('express');
 const fs = require('fs');
@@ -31,8 +32,26 @@ cron.schedule('30 20 * * *', () => {
     if (submissions.length > 0) {
         console.log('Choosing submission');
         const choice = submissions[Math.floor(Math.random() * submissions.length)];
+        let i = 0;
+        while (i < choice.length) {
+            fetch(process.env.WEBHOOK_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    content: choice.slice(i, i + 2000)
+                })
+            }).then(r => {
+                console.log('Sent message to webhook')
+            });
+            i += 2000;
+        }
         entries.push(choice);
-        submissions = [];
+        while (submissions.length > 0) {
+            submissions.pop();
+        }
+        console.log('Syncing submissions');
         fs.writeFileSync('submissions.json', JSON.stringify(submissions));
         console.log('Syncing');
         fs.writeFileSync('entries.json', JSON.stringify(entries));
@@ -45,6 +64,7 @@ setInterval(() => {
     console.log('Syncing submissions');
     fs.writeFileSync('submissions.json', JSON.stringify(submissions));
 }, SYNC_SUB_INTERVAL);
+
 
 app.listen(8080, () => {
     console.log('Server up!');
